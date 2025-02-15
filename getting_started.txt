@@ -1,7 +1,6 @@
 Code objectives:
 - Take out the implementation / Understand from scratch for attackers
 - Implementing backdoor attackers 
-- Implement basic federated learning - client inputs - choose datasets, no. of clients, dirlichlet alpha to vary IDT, no of rounds between server and client
 - code should call server -> split dataset based on alpha, create and assign ids to client and get section of dataset and train models
 
 
@@ -9,3 +8,7 @@ Understand a backdoor attack:
 - local datasets manipulate the dataset and add a pattern to a particular images, class label flipped
 - dynamic backdoor attacks, non-persistent attacker
 - detection of the above attackers
+
+To do:
+- Implement basic federated learning 
+- user inputs: choose datasets, no. of clients, dirlichlet alpha to vary non-IDD, no of rounds between server and client
