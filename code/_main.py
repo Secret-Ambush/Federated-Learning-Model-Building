@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 
 from clients_attackers import *
-from server import Server
+from code.server import Server
 
 
 
