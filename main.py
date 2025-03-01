@@ -7,7 +7,6 @@ from client import client_update
 from server import server_aggregate
 
 def main():
-    dataset_name = 'mnist'
     num_clients = int(input("Enter number of clients: ").strip())
     alpha = float(input("Enter Dirichlet alpha (e.g. 0.5): ").strip())
     num_rounds = int(input("Enter number of communication rounds: ").strip())
@@ -22,7 +21,7 @@ def main():
     print(f"Malicious client IDs: {malicious_clients}")
     
     # Load the dataset and split it among clients using Dirichlet distribution
-    trainset, testset = get_dataset(dataset_name)
+    trainset, testset = get_dataset()
     client_indices = split_dataset_dirichlet(trainset, num_clients, alpha)
     
     # Set number of channels based on dataset (MNIST: 1, CIFAR-10: 3)

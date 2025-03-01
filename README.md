@@ -43,7 +43,7 @@ federated_learning/
 ```
 
 - **models.py:** Defines the architecture (a simple CNN) for classifying images.
-- **utils.py:** Loads datasets (MNIST or CIFAR-10) and splits them into client-specific subsets using a Dirichlet distribution to control data heterogeneity.
+- **utils.py:** Loads MNIST dataset and splits them into client-specific subsets using a Dirichlet distribution to control data heterogeneity.
 - **backdoor.py:** Implements the `inject_backdoor` function that modifies image data by adding a trigger (a fixed pixel patch) and flipping labels to a target class (e.g., class 0).
 - **client.py:** Implements the local training routine. It checks if a client is malicious; if so, it applies the backdoor injection to each training batch.
 - **server.py:** Contains the logic for aggregating model updates from clients by averaging their parameters.
