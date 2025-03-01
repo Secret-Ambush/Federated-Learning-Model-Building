@@ -24,8 +24,7 @@ def main():
     trainset, testset = get_dataset()
     client_indices = split_dataset_dirichlet(trainset, num_clients, alpha)
     
-    # Set number of channels based on dataset (MNIST: 1, CIFAR-10: 3)
-    in_channels = 1 if dataset_name == 'mnist' else 3
+    in_channels = 1
     global_model = SimpleCNN(num_classes=10, in_channels=in_channels)
     
     # Begin federated learning rounds
