@@ -8,6 +8,7 @@ class SimpleCNN(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(2)
         )
+        
         # For MNIST (28x28), after a 3x3 conv and 2x2 pool, the feature map becomes 13x13.
         self.fc = nn.Linear(32 * 13 * 13, num_classes)
     

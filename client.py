@@ -20,6 +20,11 @@ def client_update(model, trainloader, local_epochs=1, lr=0.01, malicious=False):
             optimizer.zero_grad()
             output = model(data)
             loss = criterion(output, target)
+            
             loss.backward()
             optimizer.step()
+            
+            # Print the loss
+            print(f'Epoch {epoch+1}, Loss: {loss.item()}')
+            
     return model.state_dict()
