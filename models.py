@@ -1,16 +1,15 @@
 import torch.nn as nn
 
 class SimpleCNN(nn.Module):
-    def __init__(self, num_classes=10, in_channels=1):
+    def __init__(self, num_classes=10, in_channels=3):
         super(SimpleCNN, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1),
+            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2)
         )
-        
-        # For MNIST (28x28), after a 3x3 conv and 2x2 pool, the feature map becomes 13x13.
-        self.fc = nn.Linear(32 * 13 * 13, num_classes)
+        # For CIFAR10 (32x32), after a conv + 2x2 pooling, the feature map is 16x16.
+        self.fc = nn.Linear(32 * 16 * 16, num_classes)
     
     def forward(self, x):
         x = self.conv(x)

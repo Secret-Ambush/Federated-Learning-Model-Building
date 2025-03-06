@@ -9,6 +9,21 @@ Understand a backdoor attack:
 - dynamic backdoor attacks, non-persistent attacker
 - detection of the above attackers
 
+
 To do:
-- Implement basic federated learning 
-- user inputs: choose datasets, no. of clients, dirlichlet alpha to vary non-IDD, no of rounds between server and client
+- output the images for the backdoor attacks 
+- targetted attack : corrupt chosen target, percentage (30%, 40%, 50%) of images from all classes -> backdoor pattern -> target class
+- test with pattern -> should be backdoor target 
+- pattern should be significant portion (5%, 10%) of the image 
+- type of pattern (+)
+
+Variables - Dynamic Backdoor Attack
+- placement of pattern -> fixed, randomly placed (location variant)
+- size of pattern (size invariant)
+- type of pattern (pattern invariant)
+- CIFAR10 dataset 
+
+Results 
+- x (% of attackers 10,20,30,40,50), y (occurance of classifed as 1): line graph - 20 clients, 30 communication rounds, 5 epochs, CIFAR10, 50% of images 
+lines - static, size invariant, pattern invariant (3 or 4 patterns -,+, block -> randomly choose), location variant
+test data: CIFAR10, 20% testing, global model, pattern accross 100% the images, (attack success rate)
