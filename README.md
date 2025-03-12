@@ -16,7 +16,6 @@ This project implements a basic federated learning simulation with the option to
 - [User Interaction](#user-interaction)
 - [Running the Project](#running-the-project)
 - [Future Extensions](#future-extensions)
-- [Conclusion](#conclusion)
 
 ---
 
