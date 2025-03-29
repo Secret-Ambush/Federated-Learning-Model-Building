@@ -2,18 +2,12 @@ import torchvision
 import torchvision.transforms as transforms
 import numpy as np
 
-def get_dataset(dataset_name):
+def get_dataset():
     """Download and return the chosen dataset."""
-    if dataset_name.lower() == 'cifar10':
-        transform = transforms.Compose([transforms.ToTensor()])
-        trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-        testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-    elif dataset_name.lower() == 'mnist':
-        transform = transforms.Compose([transforms.ToTensor()])
-        trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-        testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-    else:
-        raise ValueError("Dataset not supported. Choose 'mnist' or 'cifar10'.")
+    transform = transforms.Compose([transforms.ToTensor()])
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
+
     return trainset, testset
 
 def split_dataset_dirichlet(dataset, num_clients, alpha):

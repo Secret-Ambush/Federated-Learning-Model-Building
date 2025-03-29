@@ -1,119 +1,170 @@
 import random
 import torch
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, Subset
+
 from models import SimpleCNN
 from utils import get_dataset, split_dataset_dirichlet
 from client import client_update
 from server import server_aggregate
-from backdoor import inject_backdoor_dynamic, plot_backdoor_images
+from backdoor import inject_backdoor_dynamic
 
-def main():
-    # --- Interactive Prompts ---
-    dataset_name = input("Choose dataset ('mnist' or 'cifar10'): ").strip().lower()
-    
-    num_clients = int(input("Enter number of clients: ").strip())
-    alpha = float(input("Enter Dirichlet alpha (e.g. 0.5): ").strip())
-    num_rounds = int(input("Enter number of communication rounds: ").strip())
-    local_epochs = int(input("Enter number of local epochs per client: ").strip())
-    
-    num_attackers = int(input("Enter the number of attackers: ").strip())
-    if num_attackers > 0:
-        malicious_clients = random.sample(range(num_clients), num_attackers)
-    else:
-        malicious_clients = []
-    print(f"Selected malicious client IDs: {malicious_clients}")
-    
-    # Backdoor parameters:
-    inj_rate = float(input("Enter injection rate for backdoor on malicious clients (e.g. 0.5 for 50%): ").strip())
-    pat_size = float(input("Enter pattern size as fraction of image (e.g. 0.1 for 10%): ").strip())
-    loc = input("Enter pattern placement ('fixed' or 'random'): ").strip().lower()
-    target_label = int(input("Enter target label for the attack (e.g. 1): ").strip())
-    # We fix the pattern type as 'plus'
-    pattern_type = "plus"
-    
-    # --- Data Preparation ---
-    trainset, testset = get_dataset(dataset_name)
-    client_indices = split_dataset_dirichlet(trainset, num_clients, alpha)
-    
-    # Set in_channels based on dataset (for CIFAR10, 3 channels)
-    in_channels = 1 if dataset_name == 'mnist' else 3
+DATASET = "cifar10"        
+NUM_CLIENTS = 20            
+ALPHA = 0.5                
+NUM_ROUNDS = 30             
+LOCAL_EPOCHS = 5            
+
+INJECTION_RATE = 0.5       
+PATTERN_SIZE = 0.1         
+TARGET_LABEL = 1         
+
+# Attacker percentages to test (percentage of total clients).
+ATTACKER_PERCENTAGES = [0, 10, 20, 30, 40, 50]
+
+# Define different backdoor configurations.
+configurations = [
+    {"label": "Static case", "location": "fixed", "pattern_type": "plus"},
+    {"label": "Location Invariant", "location": "random", "pattern_type": "plus"},
+    {"label": "Size Invariant", "location": "fixed", "pattern_type": "plus", "pattern_size": "random"},
+    {"label": "Pattern Invariant", "location": "fixed", "pattern_type": "random"}
+]
+
+# ----- Prepare Dataset -----
+trainset, testset = get_dataset()
+client_indices = split_dataset_dirichlet(trainset, NUM_CLIENTS, ALPHA)
+
+def run_experiment(num_attackers, config):
+    in_channels = 3  # CIFAR10 images have 3 channels.
     global_model = SimpleCNN(num_classes=10, in_channels=in_channels)
     
-    # --- Federated Learning Training ---
-    for rnd in range(num_rounds):
-        print(f"\n--- Round {rnd + 1} ---")
+    # Determine effective pattern size for training:
+    if config.get("pattern_size") == "random":
+        effective_pattern_size = -1
+    else:
+        effective_pattern_size = config.get("pattern_size", PATTERN_SIZE)
+    
+    location = config["location"]
+    pattern_type = config["pattern_type"]
+    
+    for rnd in range(NUM_ROUNDS):
         client_state_dicts = []
-        
-        for client_id in range(num_clients):
+        malicious_clients = random.sample(range(NUM_CLIENTS), num_attackers)
+        for client_id in range(NUM_CLIENTS):
             indices = client_indices[client_id]
             client_data = Subset(trainset, indices)
             trainloader = DataLoader(client_data, batch_size=32, shuffle=True)
             
-            # Initialize local model with global weights
             local_model = SimpleCNN(num_classes=10, in_channels=in_channels)
             local_model.load_state_dict(global_model.state_dict())
-            
-            # Determine if this client is malicious
             is_malicious = client_id in malicious_clients
             
-            # For demonstration: output sample backdoor images for the first malicious client in round 1.
-            if rnd == 0 and is_malicious:
-                sample_data, sample_target = next(iter(trainloader))
-                # Apply backdoor to 100% of the sample for visualization.
-                sample_data_bd, _ = inject_backdoor_dynamic(sample_data.clone(), sample_target.clone(),
-                                                            injection_rate=1.0,
-                                                            pattern_type=pattern_type,
-                                                            pattern_size=pat_size,
-                                                            location=loc,
-                                                            target_label=target_label)
-                print("Displaying sample backdoor images from a malicious client:")
-                plot_backdoor_images(sample_data_bd, n=8)
-            
-            # Update local model (with backdoor injection if malicious)
-            local_state = client_update(local_model, trainloader, local_epochs=local_epochs, lr=0.01,
-                                        malicious=is_malicious,
-                                        injection_rate=inj_rate,
-                                        pattern_size=pat_size,
-                                        location=loc,
-                                        pattern_type=pattern_type,
-                                        target_label=target_label)
+            local_state = client_update(
+                local_model, trainloader, local_epochs=LOCAL_EPOCHS, lr=0.01,
+                malicious=is_malicious,
+                injection_rate=INJECTION_RATE,
+                pattern_size=effective_pattern_size,
+                location=location,
+                pattern_type=pattern_type,
+                target_label=TARGET_LABEL
+            )
             client_state_dicts.append(local_state)
-        
-        # Aggregate local models into global model
         global_model = server_aggregate(global_model, client_state_dicts)
     
-    # --- Evaluation on Clean Test Set ---
-    testloader = DataLoader(testset, batch_size=32, shuffle=False)
-    global_model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for data, target in testloader:
-            outputs = global_model(data)
-            _, predicted = torch.max(outputs, 1)
-            total += target.size(0)
-            correct += (predicted == target).sum().item()
-    print(f"\nGlobal model accuracy on clean test set: {100 * correct / total:.2f}%")
-    
-    # --- Evaluation on Backdoor Test Set ---
-    # Inject backdoor into 100% of the test images.
+    if config.get("pattern_size") == "random":
+        test_pattern_size = -1
+    else:
+        test_pattern_size = effective_pattern_size
+        
+    # Setup for test evaluation
     testloader_bd = DataLoader(testset, batch_size=32, shuffle=False)
-    total_bd = 0
-    target_pred_bd = 0
+    total_images = 0
+    total_target_predictions = 0
+    total_correct_bd = 0
+    total_correct_clean = 0
+
+    global_model.eval()
     with torch.no_grad():
         for data, target in testloader_bd:
-            data_bd, _ = inject_backdoor_dynamic(data.clone(), target.clone(),
-                                                 injection_rate=1.0,
-                                                 pattern_type=pattern_type,
-                                                 pattern_size=pat_size,
-                                                 location=loc,
-                                                 target_label=target_label)
-            outputs = global_model(data_bd)
-            _, predicted = torch.max(outputs, 1)
-            total_bd += data_bd.size(0)
-            target_pred_bd += (predicted == target_label).sum().item()
-    attack_success_rate = 100 * target_pred_bd / total_bd
-    print(f"Attack success rate on backdoor test set: {attack_success_rate:.2f}%")
+            # Backdoored version
+            data_bd, _ = inject_backdoor_dynamic(
+                data.clone(), target.clone(),
+                injection_rate=1.0, 
+                pattern_type=pattern_type,
+                pattern_size=test_pattern_size,
+                location=location,
+                target_label=TARGET_LABEL
+            )
 
-if __name__ == "__main__":
-    main()
+            # Backdoor evaluation
+            outputs_bd = global_model(data_bd)
+            _, predicted_bd = torch.max(outputs_bd, 1)
+            total_images += data_bd.size(0)
+            total_target_predictions += (predicted_bd == TARGET_LABEL).sum().item()
+            total_correct_bd += (predicted_bd == target).sum().item()
+
+            # Clean evaluation
+            outputs_clean = global_model(data)
+            _, predicted_clean = torch.max(outputs_clean, 1)
+            total_correct_clean += (predicted_clean == target).sum().item()
+
+    attack_success_rate = 100 * total_target_predictions / total_images
+    backdoor_accuracy = 100 * total_correct_bd / total_images
+    clean_accuracy = 100 * total_correct_clean / total_images  # <-- NEW
+
+    return attack_success_rate, backdoor_accuracy, clean_accuracy
+
+results_asr = {config["label"]: [] for config in configurations}
+results_bd_acc = {config["label"]: [] for config in configurations}
+results_clean_acc = {config["label"]: [] for config in configurations}
+
+results_asr["No Attackers"] = []
+results_bd_acc["No Attackers"] = []
+results_clean_acc["No Attackers"] = []
+
+x_axis_attacker = ATTACKER_PERCENTAGES
+
+for config in configurations:
+    print(f"Running configuration: {config['label']}")
+    for perc in ATTACKER_PERCENTAGES:
+        num_attackers = max(0, int(NUM_CLIENTS * (perc / 100)))
+        print(f"  {perc}% attackers -> {num_attackers} attackers")
+        asr, bd_acc, clean_acc = run_experiment(num_attackers, config)
+        print(f"   Attack Success Rate: {asr:.2f}%  |  Backdoor Accuracy: {bd_acc:.2f}%  |  Clean Accuracy: {clean_acc:.2f}%")
+        results_asr[config["label"]].append(asr)
+        results_bd_acc[config["label"]].append(bd_acc)
+        results_clean_acc[config["label"]].append(clean_acc)
+
+# ----- Attack Success Rate vs. Attacker Percentage -----
+plt.figure(figsize=(10, 6))
+for label, rates in results_asr.items():
+    plt.plot(x_axis_attacker, rates, marker='o', label=label)
+plt.xlabel("Percentage of Attacker Clients (%)")
+plt.ylabel("Attack Success Rate (%)")
+plt.title("Backdoor Attack Success Rate vs. Attacker Percentage (CIFAR10)")
+plt.legend()
+plt.grid(True)
+plt.savefig("backdoor_attack_success_vs_attacker_percentage.png")
+
+# ----- Backdoor Accuracy vs. Attacker Percentage -----
+plt.figure(figsize=(10, 6))
+for label, bd_acc_rates in results_bd_acc.items():
+    plt.plot(x_axis_attacker, bd_acc_rates, marker='o', label=label)
+plt.xlabel("Percentage of Attacker Clients (%)")
+plt.ylabel("Backdoor Accuracy (%)")
+plt.title("Backdoor Accuracy vs. Attacker Percentage (CIFAR10)")
+plt.legend()
+plt.grid(True)
+plt.savefig("backdoor_accuracy_vs_attacker_percentage.png")
+
+# ----- Clean Accuracy vs. Attacker Percentage -----
+plt.figure(figsize=(10, 6))
+for label, clean_acc_rates in results_clean_acc.items():
+    plt.plot(x_axis_attacker, clean_acc_rates, marker='o', label=label)
+plt.xlabel("Percentage of Attacker Clients (%)")
+plt.ylabel("Clean Accuracy (%)")
+plt.title("Clean Accuracy vs. Attacker Percentage (CIFAR10)")
+plt.legend()
+plt.grid(True)
+plt.savefig("clean_accuracy_vs_attacker_percentage.png")
+
