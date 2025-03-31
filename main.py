@@ -27,7 +27,8 @@ configurations = [
     {"label": "Static case", "location": "fixed", "pattern_type": "plus"},
     {"label": "Location Invariant", "location": "random", "pattern_type": "plus"},
     {"label": "Size Invariant", "location": "fixed", "pattern_type": "plus", "pattern_size": "random"},
-    {"label": "Pattern Invariant", "location": "fixed", "pattern_type": "random"}
+    {"label": "Pattern Invariant", "location": "fixed", "pattern_type": "random"},
+    {"label": "Random accross all", "location": "random", "pattern_type": "random", "pattern_size": "random"}
 ]
 
 # ----- Prepare Dataset -----
@@ -118,10 +119,6 @@ results_asr = {config["label"]: [] for config in configurations}
 results_bd_acc = {config["label"]: [] for config in configurations}
 results_clean_acc = {config["label"]: [] for config in configurations}
 
-results_asr["No Attackers"] = []
-results_bd_acc["No Attackers"] = []
-results_clean_acc["No Attackers"] = []
-
 x_axis_attacker = ATTACKER_PERCENTAGES
 
 for config in configurations:
@@ -141,10 +138,10 @@ for label, rates in results_asr.items():
     plt.plot(x_axis_attacker, rates, marker='o', label=label)
 plt.xlabel("Percentage of Attacker Clients (%)")
 plt.ylabel("Attack Success Rate (%)")
-plt.title("Backdoor Attack Success Rate vs. Attacker Percentage (CIFAR10)")
+plt.title("Attack Success Rate vs. Attacker Percentage (CIFAR10)")
 plt.legend()
 plt.grid(True)
-plt.savefig("backdoor_attack_success_vs_attacker_percentage.png")
+plt.savefig("attack_success_vs_attacker_percentage.png")
 
 # ----- Backdoor Accuracy vs. Attacker Percentage -----
 plt.figure(figsize=(10, 6))
