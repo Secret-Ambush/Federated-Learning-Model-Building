@@ -28,17 +28,19 @@ def inject_backdoor_dynamic(data, targets, injection_rate=0.5, pattern_type="plu
     
     # Randomly choose a subset of images in the batch.
     indices = torch.randperm(B)[:num_to_inject]
-    
-    # Determine pattern size in pixels.
-    if(pattern_size == -1):
-        options = [0.1, 0.2, 0.3, 0.4]
-        pattern_size = random.choice(options)
-        
-    s = int(H * pattern_size)
-    if s < 1:
-        s = 1
 
     for i in indices:
+        # Determine pattern size in pixels.
+        if pattern_size == -1:
+            options = [0.1, 0.2, 0.3, 0.4]
+            ps = random.choice(options)
+        else:
+            ps = pattern_size
+            
+        s = int(H * ps)
+        if s < 1:
+            s = 1
+            
         # Determine placement for the pattern.
         if location == "fixed":
             top = H - s
